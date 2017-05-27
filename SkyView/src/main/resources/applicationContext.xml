@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:tx="http://www.springframework.org/schema/tx" xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:context="http://www.springframework.org/schema/context" xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd">
+    <context:component-scan base-package="com.skyview.*" />
+
+    <bean id="userAction" class="com.skyview.action.UserAction">
+        <property name="userService" ref="userService"></property>
+    </bean>
+
+    <bean id="userService" class="com.skyview.service.impl.UserServiceImpl">
+        <property name="userDao" ref="userDao"></property>
+    </bean>
+    <bean id="userDao" class="com.skyview.dao.impl.UserDaoImpl"/>
+    <!--数据量连接池 -->
+    <bean id="dataSource" name="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <property name="driverClass" value="com.mysql.jdbc.Driver"/>
+        <property name="jdbcUrl" value="jdbc:mysql://192.168.243.72:3306/test"/>
+        <property name="user" value="root"/>
+        <property name="password" value="root123"/>
+        <property name="maxPoolSize" value="20"/>
+        <property name="minPoolSize" value="5"/>
+        <!-- 初始化建立的连接数 -->
+        <property name="initialPoolSize" value="10"/>
+        <!-- 最大空闲时间，120秒内未被使用的连接将被丢弃 -->
+        <property name="maxIdleTime" value="120"/>
+        <!-- 当连接池耗尽，且未达到最大连接数时，一次获取的连接数 -->
+        <property name="acquireIncrement" value="2"/>
+        <!-- 空闲检查时间间隔， 每隔120秒检查连接池里的空闲连接 ，单位是秒-->
+        <property name="idleConnectionTestPeriod" value="60"/>
+    </bean>
+    <!-- 配置hibernate session工厂 -->
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+        <property name="dataSource" ref="dataSource" />
+        <property name="hibernateProperties">
+            <props>
+                <!-- web项目启动时是否更新表结构 -->
+                <prop key="hibernate.hbm2ddl.auto">update</prop>
+                <!-- 系统使用的数据库方言，也就是使用的数据库类型 -->
+                <prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+                <!-- 是否打印Hibernate生成的SQL到控制台 -->
+                <prop key="hibernate.show_sql">true</prop>
+                <!-- 是否格式化打印出来的SQL -->
+                <prop key="hibernate.format_sql">true</prop>
+            </props>
+        </property>
+        <!-- 自动扫描注解方式配置的hibernate类文件 -->
+        <property name="packagesToScan">
+            <list>
+                <value>com.skyview.model</value>
+            </list>
+        </property>
+    </bean>
+
+    <!-- 配置事务管理器 -->
+    <bean name="transactionManager" class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+        <property name="sessionFactory" ref="sessionFactory"></property>
+    </bean>
+
+    <!-- 拦截器方式配置事物 -->
+    <tx:advice id="transactionAdvice" transaction-manager="transactionManager">
+        <tx:attributes>
+            <!-- 以如下关键字开头的方法使用事物 -->
+            <tx:method name="add*" />
+            <tx:method name="save*" />
+            <tx:method name="update*" />
+            <tx:method name="modify*" />
+            <tx:method name="edit*" />
+            <tx:method name="delete*" />
+            <tx:method name="remove*" />
+            <tx:method name="repair" />
+            <tx:method name="deleteAndRepair" />
+            <!-- 以如下关键字开头的方法不使用事物 -->
+            <tx:method name="get*" propagation="SUPPORTS" />
+            <tx:method name="find*" propagation="SUPPORTS" />
+            <tx:method name="load*" propagation="SUPPORTS" />
+            <tx:method name="search*" propagation="SUPPORTS" />
+            <tx:method name="datagrid*" propagation="SUPPORTS" />
+            <!-- 其他方法不使用事物 -->
+            <tx:method name="*" propagation="SUPPORTS" />
+        </tx:attributes>
+    </tx:advice>
+    <!-- 切面，将事物用在哪些对象上 -->
+    <aop:config>
+    <aop:pointcut id="transactionPointcut" expression="execution(* com.skyview.service.*Impl.*(..))" />
+    <aop:advisor pointcut-ref="transactionPointcut" advice-ref="transactionAdvice" />
+    </aop:config>
+</beans>
